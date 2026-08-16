@@ -2,11 +2,21 @@
 
 How to release this module so other MagicMirror² users can find and install it.
 
+> ## Progress, as of 2026-08-16
+>
+> | Step | State |
+> |---|---|
+> | 1. Create the GitHub repository | ✅ done — <https://github.com/knutsoza/MMM-SLDepartures>, public, pushed |
+> | 2. Add the discovery topics | ✅ done — all six topics and the description are set |
+> | 3. Tag a release | ⬜ **next** |
+> | 4. Add it to the official third-party modules list | ⬜ the highest-value step for adoption |
+> | 5. Announce it on the forum | ⬜ |
+>
+> CI is green on Node 20 and 24, so there is nothing blocking a `v1.0.0` tag.
+> Steps 1 and 2 are kept below for reference rather than to be re-run.
+
 Written for someone who has never published an MM² module before. Steps 1–3 are the minimum to
 make it installable; steps 4–5 are what actually get it *discovered*.
-
-Before you start, decide the GitHub account or organisation that will own it, and replace every
-`REPLACE_ME` in `package.json` and `README.md` with that account name.
 
 ---
 
