@@ -1,0 +1,39 @@
+{
+  "name": "mmm-sldepartures",
+  "version": "1.0.0",
+  "description": "MagicMirror² module showing realtime Stockholm (SL) public transport departures via the keyless SL Transport API",
+  "main": "MMM-SLDepartures.js",
+  "keywords": [
+    "MagicMirror",
+    "MagicMirror2",
+    "magicmirror-module",
+    "SL",
+    "Storstockholms Lokaltrafik",
+    "Stockholm",
+    "pendeltåg",
+    "departures",
+    "public-transport"
+  ],
+  "license": "MIT",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "test": "node --test \"tests/**/*.test.js\"",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.0",
+    "eslint": "^10.0.0"
+  },
+  "author": "knutsoza",
+  "homepage": "https://github.com/knutsoza/MMM-SLDepartures#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/knutsoza/MMM-SLDepartures.git"
+  },
+  "bugs": {
+    "url": "https://github.com/knutsoza/MMM-SLDepartures/issues"
+  }
+}

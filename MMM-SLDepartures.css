@@ -1,0 +1,71 @@
+/* MMM-SLDepartures
+ *
+ * Deliberately minimal and theme-inheriting: sizes use em so the module scales
+ * with whatever font-size the surrounding region sets, and colours come from
+ * MagicMirror's own variables. Override anything here from your install's
+ * config/custom.css rather than editing this file, so module updates do not
+ * discard your styling.
+ */
+
+.SLDEP {
+  --sldep-gap: 0.6em;
+}
+
+.SLDEP-table {
+  border-spacing: 0;
+  width: 100%;
+}
+
+.SLDEP-row {
+  line-height: 1.35;
+}
+
+/* Line designation, e.g. "43". Dimmed: which line it is matters less than when
+ * it leaves, and at most stations it is always the same line anyway. */
+.SLDEP-line {
+  color: var(--color-text-dimmed);
+  padding-right: var(--sldep-gap);
+  text-align: left;
+  white-space: nowrap;
+}
+
+.SLDEP-destination {
+  color: var(--color-text);
+  overflow: hidden;
+  padding-right: var(--sldep-gap);
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Absolute clock time — the one thing the display exists to show, so it is the
+ * brightest element in the row. */
+.SLDEP-time {
+  color: var(--color-text-bright);
+  font-variant-numeric: tabular-nums; /* keeps the times in a straight column */
+  text-align: right;
+  white-space: nowrap;
+}
+
+.SLDEP-delayed {
+  color: var(--color-text);
+}
+
+.SLDEP-cancelled {
+  opacity: 0.45;
+  text-decoration: line-through;
+}
+
+/* Disruption marker. Kept to a single character so a busy day does not turn the
+ * band into a wall of text; the full message is in the title attribute. */
+.SLDEP-deviation {
+  color: var(--color-text-dimmed);
+  font-weight: bold;
+}
+
+.SLDEP-error,
+.SLDEP-empty,
+.SLDEP-loading {
+  color: var(--color-text-dimmed);
+  text-align: right;
+}

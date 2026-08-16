@@ -1,0 +1,15 @@
+# Normalise to LF in the repository regardless of the contributor's platform.
+# A Windows checkout with core.autocrlf=true otherwise rewrites text files to
+# CRLF on the way in, which reaches anyone who clones on Linux — where this
+# module actually runs.
+* text=auto eol=lf
+*.js  text eol=lf
+*.mjs text eol=lf
+*.json text eol=lf
+*.yml text eol=lf
+*.css text eol=lf
+*.md  text eol=lf
+
+*.png binary
+*.jpg binary
+*.jpeg binary

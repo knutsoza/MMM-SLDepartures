@@ -1,0 +1,28 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        # 20 is the module's declared floor; 24 is what current MagicMirror runs on.
+        node: [20, 24]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+
+      - run: npm ci
+
+      # Tests run against a captured API response and need no network, so CI
+      # cannot be broken by SL having a bad day.
+      - run: node --run test
+
+      - run: node --run lint
