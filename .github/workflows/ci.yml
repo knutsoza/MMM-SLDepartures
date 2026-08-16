@@ -23,6 +23,6 @@ jobs:
 
       # Tests run against a captured API response and need no network, so CI
       # cannot be broken by SL having a bad day.
-      - run: node --run test
+      - run: npm test
 
-      - run: node --run lint
+      - run: npm run lint

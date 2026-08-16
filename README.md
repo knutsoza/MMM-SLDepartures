@@ -1,5 +1,8 @@
 # MMM-SLDepartures
 
+[![CI](https://github.com/knutsoza/MMM-SLDepartures/actions/workflows/ci.yml/badge.svg)](https://github.com/knutsoza/MMM-SLDepartures/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+
 A [MagicMirror²](https://magicmirror.builders) module showing **realtime departures for Stockholm public transport (SL)** — commuter trains, metro, buses, trams and ferries.
 
 - **No API key and no account.** Uses the current, keyless [SL Transport API](https://www.trafiklab.se/api/trafiklab-apis/sl/transport/).
@@ -184,11 +187,11 @@ because the API sends no CORS headers and so that one request serves every attac
 ## Development
 
 ```bash
-node --run test
+npm test
 ```
 
 ```bash
-node --run lint
+npm run lint
 ```
 
 Tests run against a real captured API response (`tests/fixture-tcentralen.json`) and need no network.

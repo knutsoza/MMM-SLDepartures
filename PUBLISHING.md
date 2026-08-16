@@ -125,4 +125,4 @@ Worth calling out explicitly in the post, because it is the reason this module e
   is the answer; if people keep hitting it, make it more prominent rather than answering repeatedly.
 - If the SL API changes shape, `tests/fixture-tcentralen.json` is a captured real response — refresh it
   and the tests will tell you what broke.
-- Keep `node --run test` and `node --run lint` green before tagging anything new.
+- Keep `npm test` and `npm run lint` green before tagging anything new.
