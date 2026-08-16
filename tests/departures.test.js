@@ -5,11 +5,16 @@ const path = require("node:path");
 
 const { filterDepartures, formatTime, isDelayed, isCancelled, deviationMessages } = require("../lib/departures");
 
-/* A real, unedited /v1/sites/9731/departures response captured from the live
- * API. It happens to contain exactly the mix that makes the direction filter
- * tricky: northbound trains, southbound trains, and buses whose direction_code
- * is also 2 but which travel away from the city. */
-const fixture = JSON.parse(fs.readFileSync(path.join(__dirname, "fixture-skogas.json"), "utf8"));
+/* A real, unedited /v1/sites/9001/departures response (T-Centralen) captured
+ * from the live API.
+ *
+ * T-Centralen is used because it contains, in one payload, every case that
+ * makes this filter tricky: commuter trains in both directions, metro and tram,
+ * and — the important one — buses sharing direction_code 2 with the trains
+ * while going somewhere entirely different. Filtering on direction alone is
+ * therefore demonstrably insufficient, and the tests below prove it against
+ * real data rather than a contrived object. */
+const fixture = JSON.parse(fs.readFileSync(path.join(__dirname, "fixture-tcentralen.json"), "utf8"));
 
 const config = {
 	directionCode: 2,
@@ -20,7 +25,7 @@ const config = {
 };
 
 test("fixture has the mix we rely on", () => {
-	assert.equal(fixture.departures.length, 19);
+	assert.equal(fixture.departures.length, 67);
 	const has = (fn) => fixture.departures.some(fn);
 	assert.ok(has((d) => d.direction_code === 2 && d.line.transport_mode === "TRAIN"), "northbound trains");
 	assert.ok(has((d) => d.direction_code === 2 && d.line.transport_mode === "BUS"), "dir-2 buses");
@@ -40,9 +45,10 @@ test("excludes buses whose direction_code is also 2 — the main gotcha", () => 
 	const out = filterDepartures(fixture, config);
 	const busLines = out.filter((d) => d.line.transport_mode === "BUS").map((d) => d.line.designation);
 	assert.deepEqual(busLines, [], "no buses may appear");
-	// Named explicitly: these are the lines that would leak through a
-	// directionCode-only filter, heading to Farsta/Huddinge, away from town.
-	for (const bad of ["742", "830", "831"]) {
+	// Named explicitly: these are the bus lines at T-Centralen that carry
+	// direction_code 2 alongside the trains, and would leak through a
+	// directionCode-only filter.
+	for (const bad of ["69", "65"]) {
 		assert.ok(!out.some((d) => d.line.designation === bad), `line ${bad} must not appear`);
 	}
 });
@@ -106,18 +112,57 @@ test("isCancelled recognises SL's states", () => {
 });
 
 test("showCancelled false removes cancelled departures", () => {
-	const doctored = { departures: fixture.departures.map((d, i) => (i === 0 ? { ...d, state: "CANCELLED" } : d)) };
-	const kept = filterDepartures(doctored, config);
-	const dropped = filterDepartures(doctored, { ...config, showCancelled: false });
-	assert.ok(dropped.length < kept.length);
+	/* Cancel a departure the filter actually KEEPS.
+	 *
+	 * This previously doctored departures[0] regardless of what it was. That
+	 * only worked because the old fixture happened to lead with a matching
+	 * train; here entry 0 is a bus the mode filter already drops, so cancelling
+	 * it changes nothing and the comparison is vacuous. Find a survivor. */
+	const target = fixture.departures.findIndex(
+		(d) => d.direction_code === 2 && d.line.transport_mode === "TRAIN"
+	);
+	assert.ok(target >= 0, "fixture must contain a departure this config keeps");
+
+	const doctored = {
+		departures: fixture.departures.map((d, i) => (i === target ? { ...d, state: "CANCELLED" } : d))
+	};
+
+	/* Raise maxDepartures above the number of matches (7), or the cap hides the
+	 * very difference being measured: drop one from seven and you still get six
+	 * rows back, so the lengths match and the test passes for no reason. */
+	const uncapped = { ...config, maxDepartures: 99 };
+	const kept = filterDepartures(doctored, uncapped);
+	const dropped = filterDepartures(doctored, { ...uncapped, showCancelled: false });
+	assert.ok(dropped.length < kept.length, "hiding cancelled departures must shorten the list");
 });
 
 test("deviations below the importance threshold are hidden", () => {
-	// The live fixture carries a real level-2 lift notice at Skogås.
-	const withDev = fixture.departures.find((d) => (d.deviations || []).length > 0);
-	assert.ok(withDev, "fixture should contain a deviation");
-	assert.deepEqual(deviationMessages(withDev, 3), [], "level-2 lift notice is routine noise");
-	assert.ok(deviationMessages(withDev, 1).length > 0, "but is visible at a lower threshold");
+	/* The threshold boundary is tested with EXPLICIT inputs, not by hunting
+	 * through the fixture.
+	 *
+	 * The original test searched the captured response for a low-importance
+	 * notice and asserted it was hidden. That passed only because the station
+	 * happened to have a broken lift the day the fixture was taken — every
+	 * deviation in the current capture is level 7, so the same search finds
+	 * nothing and the test collapses. Whether SL is advertising a broken
+	 * escalator today is not a property of this code.
+	 *
+	 * deviationMessages is pure, so state the cases directly and let the fixture
+	 * cover the realistic end. */
+	const dev = (level) => ({ deviations: [{ importance_level: level, message: `level ${level}` }] });
+
+	assert.deepEqual(deviationMessages(dev(2), 3), [], "below the threshold is hidden");
+	assert.equal(deviationMessages(dev(3), 3).length, 1, "exactly at the threshold is shown");
+	assert.equal(deviationMessages(dev(7), 3).length, 1, "above the threshold is shown");
+	assert.equal(deviationMessages(dev(2), 1).length, 1, "lowering the threshold reveals it");
+	assert.deepEqual(deviationMessages({ deviations: [] }, 3), [], "no deviations yields no messages");
+	assert.deepEqual(deviationMessages({}, 3), [], "a missing deviations key must not throw");
+
+	// And the realistic end: a genuine disruption in the live capture survives.
+	const levels = (d) => (d.deviations || []).map((v) => v.importance_level ?? 0);
+	const notable = fixture.departures.find((d) => levels(d).some((l) => l >= 3));
+	assert.ok(notable, "fixture should carry a real disruption");
+	assert.ok(deviationMessages(notable, 3).length > 0, "which survives the default threshold");
 });
 
 test("malformed payloads yield an empty list instead of throwing", () => {

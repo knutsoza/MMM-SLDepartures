@@ -123,6 +123,6 @@ Worth calling out explicitly in the post, because it is the reason this module e
 - Watch the repo's **Issues** — the most likely first report is someone at a different station
   whose `direction_code` is the other way round. The README's *Finding your direction code* section
   is the answer; if people keep hitting it, make it more prominent rather than answering repeatedly.
-- If the SL API changes shape, `tests/fixture-skogas.json` is a captured real response — refresh it
+- If the SL API changes shape, `tests/fixture-tcentralen.json` is a captured real response — refresh it
   and the tests will tell you what broke.
 - Keep `node --run test` and `node --run lint` green before tagging anything new.

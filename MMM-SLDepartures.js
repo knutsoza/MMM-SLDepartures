@@ -9,13 +9,15 @@ Module.register("MMM-SLDepartures", {
 	defaults: {
 		/* Site (station/stop-area) id. Look yours up once via:
 		 *   https://transport.integration.sl.se/v1/sites?expand=false
-		 * 9731 = Skogås. */
-		siteId: 9731,
+		 * 9001 = T-Centralen. Note a single place can expose more than one site
+		 * id (Slussen is 9192 and 9208), so search rather than assume. */
+		siteId: 9001,
 
-		/* Which way to travel. direction_code is per line and is only ever 1 or
-		 * 2; which one is "toward town" differs by station, so verify yours (see
-		 * README). At Skogås, 2 = northbound toward Bålsta via Stockholm City.
-		 * Set null to show both directions. */
+		/* Which way to travel. direction_code is per LINE and is only ever 1 or
+		 * 2; which one means "toward town" differs from station to station, so
+		 * verify yours rather than copying this (see README). At T-Centralen, 2
+		 * is northbound/westbound for the commuter lines — Uppsala C, Märsta,
+		 * Kungsängen. Set null to show both directions. */
 		directionCode: 2,
 
 		/* Restrict to these transport modes. Keep this set — a site covers every
@@ -35,16 +37,18 @@ Module.register("MMM-SLDepartures", {
 		/* Minutes to look ahead. null = let the API use its own default (60).
 		 *
 		 * Raising this does NOT reliably yield more departures, because SL also
-		 * caps how many it will return per mode. Measured at Skogås (site 9731)
-		 * on 2026-08-16:
+		 * limits how many it returns per transport mode, and that limit varies
+		 * by how busy the site is. Measured 2026-08-16:
 		 *
-		 *   forecast=60   total=18  TRAIN=6  span 12:41..13:34
-		 *   forecast=240  total=24  TRAIN=6  span 12:41..14:04
+		 *   T-Centralen        forecast=60   total=68  TRAIN=16
+		 *                      forecast=240  total=72  TRAIN=18
+		 *   quiet suburban     forecast=60   total=18  TRAIN=6
+		 *                      forecast=240  total=24  TRAIN=6
 		 *
-		 * The window genuinely widened, but the six extra rows were all buses —
-		 * TRAIN stayed pinned at 6, and those six split across both directions,
-		 * so a single-direction filter left about three. Worth trying at a quiet
-		 * stop; do not expect it to defeat the per-mode cap. */
+		 * At the hub a wider window bought two more trains. At the quiet stop it
+		 * bought none — the extra rows were all buses while TRAIN stayed pinned
+		 * at 6, and those six split across both directions, leaving about three
+		 * after a single-direction filter. Worth trying; do not rely on it. */
 		forecast: null,
 
 		/* Poll interval in ms. 60s is ample for a wall display. This is a free,
@@ -65,7 +69,7 @@ Module.register("MMM-SLDepartures", {
 		showCancelled: true,
 
 		showLineNumber: true,  // the line designation column, e.g. "43"
-		showDestination: true, // the destination column, e.g. "Bålsta"
+		showDestination: true, // the destination column, e.g. "Uppsala C"
 
 		header: "" // module header text; empty = no header
 	},

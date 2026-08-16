@@ -15,11 +15,14 @@ A [MagicMirror²](https://magicmirror.builders) module showing **realtime depart
 ## Screenshot
 
 ```
-43  Bålsta          16:49
-43  Kungsängen      17:04
-43  Bålsta       !  17:19
-43  Kungsängen      17:34
+43  Uppsala C       16:49
+41  Märsta          17:04
+40  Kungsängen   !  17:19
+43  Uppsala C       17:34
 ```
+
+Line, destination, and the departure time. `!` marks a disruption — hover for the message.
+A delayed time is highlighted; a cancelled one is struck through.
 
 ## Install
 
@@ -53,8 +56,8 @@ Add to the `modules` array in `config/config.js`:
   module: "MMM-SLDepartures",
   position: "bottom_right",
   config: {
-    siteId: 9731,              // Skogås
-    directionCode: 2,          // northbound (toward Stockholm City)
+    siteId: 9001,              // T-Centralen
+    directionCode: 2,          // check yours — see below
     transportModes: ["TRAIN"],
     maxDepartures: 6
   }
@@ -65,7 +68,7 @@ Add to the `modules` array in `config/config.js`:
 
 | Option | Type | Default | Description |
 |---|---|---|---|
-| `siteId` | number | `9731` | Which stop to show. See *Finding your site id*. |
+| `siteId` | number | `9001` | Which stop to show. See *Finding your site id*. |
 | `directionCode` | number \| null | `2` | `1` or `2`. See *Finding your direction code* — **this is the option people get wrong**. `null` shows both directions. |
 | `transportModes` | string[] | `["TRAIN"]` | Keep only these modes: `TRAIN`, `METRO`, `BUS`, `TRAM`, `SHIP`. Empty array = all modes. **Read the warning below before emptying it.** |
 | `lines` | string[] | `[]` | Keep only these line designations, e.g. `["43"]`. Empty = all lines matching the modes above. Useful when one platform serves several lines and you only ever catch one. |
@@ -76,26 +79,31 @@ Add to the `modules` array in `config/config.js`:
 | `minDeviationImportance` | number | `3` | Minimum SL `importance_level` to report. SL tags permanent notices (broken lifts, escalators) low, and the default keeps them off the wall. Lower it to see everything. |
 | `showCancelled` | boolean | `true` | Show cancelled departures struck through. Usually what you want — a train silently vanishing looks identical to one that has already left. `false` hides them. |
 | `showLineNumber` | boolean | `true` | Show the line designation column, e.g. `43`. |
-| `showDestination` | boolean | `true` | Show the destination column, e.g. `Bålsta`. |
+| `showDestination` | boolean | `true` | Show the destination column, e.g. `Uppsala C`. |
 | `header` | string | `""` | Module header text. Empty = no header. |
 
 ### Why you may get fewer rows than you asked for
 
-`maxDepartures: 6` can still show three. SL caps how many departures it returns **per transport
-mode**, and widening the time window does not lift that cap. Measured at Skogås on 2026-08-16:
+`maxDepartures: 6` can still show three, and that is usually the API rather than your config.
 
-| Request | Total returned | of which `TRAIN` | Time span |
-|---|---|---|---|
-| `forecast=60` | 18 | **6** | 12:41 – 13:34 |
-| `forecast=240` | 24 | **6** | 12:41 – 14:04 |
+SL limits how many departures it returns **per transport mode**, and the limit is per site — busy
+hubs return far more than quiet ones. Measured 2026-08-16:
 
-The window genuinely widened and six more departures appeared — but every one was a bus. `TRAIN`
-stayed pinned at 6, and those six split across both directions, so a single-direction filter left
+| Site | Request | Total | of which `TRAIN` | Span |
+|---|---|---|---|---|
+| T-Centralen (9001) | `forecast=60` | 68 | 16 | 14:08 – 15:09 |
+| T-Centralen (9001) | `forecast=240` | 72 | **18** | 14:07 – 15:36 |
+| A quiet suburban stop | `forecast=60` | 18 | 6 | 12:41 – 13:34 |
+| A quiet suburban stop | `forecast=240` | 24 | **6** | 12:41 – 14:04 |
+
+At the busy hub a wider window bought two more trains. At the quiet stop it bought **none** — the
+window genuinely widened and six more departures appeared, but every one was a bus, while `TRAIN`
+stayed pinned at 6. Those six then split across both directions, so a single-direction filter left
 about three.
 
-So `forecast` is worth trying at a quiet stop where 60 minutes genuinely holds too few services, but
-it will not defeat the per-mode cap. If your list looks short, that is usually the API, not your
-config.
+So: raising `forecast` is worth a try, but do not expect it to rescue a short list at a quiet stop.
+And remember the split — a site's departures cover **both directions**, so a one-direction filter
+roughly halves whatever you see.
 
 ## Finding your site id
 
@@ -112,7 +120,7 @@ A few for reference, verified against the API on 2026-08-16:
 | T-Centralen | `9001` |
 | Stockholm City | `1080` |
 | Odenplan | `9117` |
-| Skogås | `9731` |
+| Södertälje centrum | `9527` |
 | Slussen | `9192` **and** `9208` |
 
 Slussen is the cautionary one: a single place can expose **more than one site id**, covering
@@ -125,37 +133,46 @@ oddly incomplete, check whether your stop has a second id.
 means "toward town" differs from station to station. Do not copy someone else's value — check yours:
 
 ```bash
-curl -s "https://transport.integration.sl.se/v1/sites/9731/departures" | grep -oE '"direction":"[^"]*"' | sort -u
+curl -s "https://transport.integration.sl.se/v1/sites/9001/departures" | grep -oE '"direction":"[^"]*"' | sort -u
 ```
 
 Then match the `direction` / `destination` names against the code:
 
 ```bash
-curl -s "https://transport.integration.sl.se/v1/sites/9731/departures" \
+curl -s "https://transport.integration.sl.se/v1/sites/9001/departures" \
   | python3 -c "import json,sys; [print(d['direction_code'], d['line']['transport_mode'], d['line']['designation'], '->', d['destination']) for d in json.load(sys.stdin)['departures']]" | sort -u
 ```
 
-For Skogås this gives:
+For T-Centralen, the commuter-train rows come out as:
 
-| `direction_code` | Mode | Line | Goes to | Meaning |
+| `direction_code` | Mode | Lines | Goes to | Meaning |
 |---|---|---|---|---|
-| `2` | TRAIN | 43 | Bålsta, Kungsängen | **northbound**, via Stockholm City |
-| `1` | TRAIN | 43 | Nynäshamn, Västerhaninge | southbound |
+| `2` | TRAIN | 40, 41, 43 | Uppsala C, Märsta, Kungsängen | northbound / westbound |
+| `1` | TRAIN | 40, 41, 43 | Nynäshamn, Södertälje centrum, Västerhaninge | southbound |
+
+Note the same line numbers appear under both codes — which is the point. The code is a property of
+the line's *route*, not of the station, so there is no shortcut: run the command for your own stop.
 
 ### ⚠️ Always set `transportModes` as well
 
-An SL **site is a place, not a platform**. Site `9731` covers the Skogås commuter-rail station *and*
-the surrounding bus stops. Because `direction_code` is per line, the same code means different things
-for different lines at the same site. At Skogås:
+An SL **site is a place, not a platform.** One site id covers every stop at that location — the
+railway platforms, the metro, and the bus stands outside. Because `direction_code` is assigned per
+line, the same code means different things for different lines at the same site.
+
+T-Centralen, from the same captured response:
 
 | `direction_code` | Mode | Lines | Goes to |
 |---|---|---|---|
-| `2` | TRAIN | 43 | Bålsta / Kungsängen — *toward town* ✅ |
-| `2` | **BUS** | 742, 830, 831 | Huddinge sjukhus, Farsta centrum — *away from town* ❌ |
+| `2` | TRAIN | 40, 41, 43 | Uppsala C / Märsta / Kungsängen — *what you asked for* ✅ |
+| `2` | **BUS** | 65, 69 | Centralen, Hornsberg — *a city bus, not your train* ❌ |
+| `2` | **METRO** | 13, 14, 17, 18, 19 | Skarpnäck, Fruängen, Hagsätra — *also not your train* ❌ |
 
-So filtering on `directionCode: 2` alone silently mixes buses heading the wrong way into your
-"northbound trains" list. Constraining `transportModes` is what makes the filter correct. This is
-covered by a regression test (`dropping the transportModes filter is what lets buses in`).
+So filtering on `directionCode: 2` alone quietly mixes buses and metro trains into what you thought
+was a commuter-rail list. Constraining `transportModes` is what makes the filter correct.
+
+This is covered by a regression test (`dropping the transportModes filter is what lets buses in`),
+which asserts against the real captured response in `tests/` — so if SL ever changes the shape of
+this data, the test says so rather than the wall quietly filling with the wrong vehicles.
 
 ## Behaviour on failure
 
@@ -174,7 +191,7 @@ node --run test
 node --run lint
 ```
 
-Tests run against a real captured API response (`tests/fixture-skogas.json`) and need no network.
+Tests run against a real captured API response (`tests/fixture-tcentralen.json`) and need no network.
 
 ## Licence
 
