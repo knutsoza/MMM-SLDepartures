@@ -3,19 +3,9 @@
 [![CI](https://github.com/knutsoza/MMM-SLDepartures/actions/workflows/ci.yml/badge.svg)](https://github.com/knutsoza/MMM-SLDepartures/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-A [MagicMirror²](https://magicmirror.builders) module showing **realtime departures for Stockholm public transport (SL)** — commuter trains, metro, buses, trams and ferries.
-
-- **No API key and no account.** Uses the current, keyless [SL Transport API](https://www.trafiklab.se/api/trafiklab-apis/sl/transport/).
-- **Absolute clock times** (`16:49`), not countdowns — so you are not doing mental arithmetic from across the room.
-- Realtime: uses SL's `expected` time when available, falling back to the timetable.
-- Filters by direction, transport mode and line.
-- Flags delays and cancellations, and hides routine station noise.
-
-> **Why another SL module?** The popular ones (`MMM-SL`, `MMM-SL-PublicTransport`) target SL's
-> *"Realtidsinformation 4"* API, which required a Trafiklab key and has since been **retired**.
-> This module targets the replacement `transport.integration.sl.se` API, which needs no key at all.
-
-## Screenshot
+Realtime Stockholm public transport departures on your [MagicMirror²](https://magicmirror.builders)
+wall display. Commuter trains, metro, buses, trams and ferries — **no API key, no account, no
+monthly anything.**
 
 ```
 43  Uppsala C       16:49
@@ -24,12 +14,28 @@ A [MagicMirror²](https://magicmirror.builders) module showing **realtime depart
 43  Uppsala C       17:34
 ```
 
-Line, destination, and the departure time. `!` marks a disruption — hover for the message.
-A delayed time is highlighted; a cancelled one is struck through.
+Line, destination, departure time. `!` marks a disruption, with the message on hover; a delayed time
+is highlighted and a cancelled one struck through.
+
+## Why this exists
+
+The established SL modules — `MMM-SL`, `MMM-SL-PublicTransport` — target SL's
+*Realtidsinformation 4* API. That API required a Trafiklab key and has since been **retired**, so
+those modules no longer work. This one targets the current
+[SL Transport API](https://www.trafiklab.se/api/trafiklab-apis/sl/transport/)
+(`transport.integration.sl.se`), which needs no key at all.
+
+It also shows **absolute clock times** rather than countdowns, because a wall display is read from
+across a room and "7 min" means doing arithmetic against a clock you can already see.
+
+Beyond that: realtime where SL provides it (the `expected` time, falling back to the timetable),
+filtering by direction, transport mode and line, and disruption flags with the routine station noise
+filtered out.
 
 ## Install
 
-Clone into your MagicMirror `modules` directory:
+No runtime dependencies and no build step. The `devDependencies` exist only for the tests and
+linter.
 
 ```bash
 cd ~/MagicMirror/modules
@@ -40,9 +46,6 @@ git clone https://github.com/knutsoza/MMM-SLDepartures.git
 ```
 
 Then restart MagicMirror (`pm2 restart magicmirror`, or however you run it).
-
-**There are no runtime dependencies** — no `npm install` step. The `devDependencies` in
-`package.json` are only for running the tests and linter.
 
 To update later:
 
@@ -69,48 +72,76 @@ Add to the `modules` array in `config/config.js`:
 
 ### Options
 
-| Option | Type | Default | Description |
+Every option, what it does, and when you would actually change it.
+
+| Option | Type | Default | What it does |
 |---|---|---|---|
-| `siteId` | number | `9001` | Which stop to show. See *Finding your site id*. |
-| `directionCode` | number \| null | `2` | `1` or `2`. See *Finding your direction code* — **this is the option people get wrong**. `null` shows both directions. |
-| `transportModes` | string[] | `["TRAIN"]` | Keep only these modes: `TRAIN`, `METRO`, `BUS`, `TRAM`, `SHIP`. Empty array = all modes. **Read the warning below before emptying it.** |
-| `lines` | string[] | `[]` | Keep only these line designations, e.g. `["43"]`. Empty = all lines matching the modes above. Useful when one platform serves several lines and you only ever catch one. |
-| `maxDepartures` | number | `6` | How many rows to render. An **upper bound, not a promise** — you get whatever the API returns, capped at this. See *Why you may get fewer rows than you asked for*. |
-| `forecast` | number \| null | `null` | Minutes to look ahead. `null` uses SL's own default (60). Raising it does **not** reliably yield more departures — see below. |
-| `updateInterval` | number | `60000` | Poll interval in ms. Please do not go below ~30 s; this is a free, unauthenticated API used by everyone. |
-| `showDeviations` | boolean | `true` | Show a `!` marker for disruptions, with the message on hover. |
-| `minDeviationImportance` | number | `3` | Minimum SL `importance_level` to report. SL tags permanent notices (broken lifts, escalators) low, and the default keeps them off the wall. Lower it to see everything. |
-| `showCancelled` | boolean | `true` | Show cancelled departures struck through. Usually what you want — a train silently vanishing looks identical to one that has already left. `false` hides them. |
+| `siteId` | number | `9001` | Which stop to show. A "site" is a whole place, not a platform. See *[Finding your stop](#finding-your-stop)* — and note one place can have more than one id. |
+| `directionCode` | number \| null | `2` | Which way the service is heading: `1` or `2`. **The option people get wrong** — which number means "toward town" differs by station. `null` shows both. |
+| `transportModes` | string[] | `["TRAIN"]` | Keep only these modes: `TRAIN`, `METRO`, `BUS`, `TRAM`, `SHIP`. Empty means all — read *[A site is a place, not a platform](#a-site-is-a-place-not-a-platform)* before emptying it. |
+| `lines` | string[] | `[]` | Keep only these line designations, e.g. `["43"]`. Useful when a platform serves several lines but you only ever catch one. |
+| `maxDepartures` | number | `6` | How many rows to render. An **upper bound, not a promise** — see *[You may get fewer rows than you asked for](#you-may-get-fewer-rows-than-you-asked-for)*. |
+| `forecast` | number \| null | `null` | Minutes to look ahead. `null` uses SL's own default of 60. Raising it helps less than you would expect. |
+| `updateInterval` | number | `60000` | Poll interval in milliseconds. Please don't go below ~30 s — this is a free, unauthenticated API shared by everyone. |
+| `showDeviations` | boolean | `true` | Show a `!` against disrupted departures, with the message on hover. |
+| `minDeviationImportance` | number | `3` | Lowest SL `importance_level` worth showing. SL files broken lifts and escalator works at low importance; the default keeps those off your wall. Lower it to see everything. |
+| `showCancelled` | boolean | `true` | Keep cancelled departures visible, struck through. Usually right: a train silently vanishing looks exactly like one that already left. `false` hides them. |
 | `showLineNumber` | boolean | `true` | Show the line designation column, e.g. `43`. |
 | `showDestination` | boolean | `true` | Show the destination column, e.g. `Uppsala C`. |
-| `header` | string | `""` | Module header text. Empty = no header. |
+| `header` | string | `""` | Module header text. Empty means no header. |
 
-### Why you may get fewer rows than you asked for
+## Two things that will catch you out
+
+Both are properties of the SL API rather than of this module, and both look like your configuration
+is broken when it isn't.
+
+### A site is a place, not a platform
+
+One site id covers *everything* at that location — the railway platforms, the metro below, and the
+bus stands outside. And `direction_code` is assigned per **line**, not per compass direction, so the
+same number means different things for different services at the same stop.
+
+At T-Centralen, `direction_code: 2` covers all of this:
+
+| Mode | Lines | Heading for |
+|---|---|---|
+| `TRAIN` | 40, 41, 43 | Uppsala C, Märsta, Kungsängen — **what you asked for** ✅ |
+| `BUS` | 65, 69 | Centralen, Hornsberg — a city bus, not your train ❌ |
+| `METRO` | 13, 14, 17, 18, 19 | Skarpnäck, Fruängen, Hagsätra — also not your train ❌ |
+
+Filter on direction alone and all of them land in what you thought was a commuter-rail list. Setting
+`transportModes` is what makes the filter correct.
+
+This is covered by a regression test (`dropping the transportModes filter is what lets buses in`),
+asserted against a real captured response in `tests/` — so if SL changes the shape of this data, the
+test says so rather than the wall quietly filling with the wrong vehicles.
+
+### You may get fewer rows than you asked for
 
 `maxDepartures: 6` can still show three, and that is usually the API rather than your config.
 
-SL limits how many departures it returns **per transport mode**, and the limit is per site — busy
-hubs return far more than quiet ones. Measured 2026-08-16:
+SL limits how many departures it returns **per transport mode**, and the limit scales with how busy
+the stop is. Widening the window does not lift it. Measured 2026-08-16:
 
-| Site | Request | Total | of which `TRAIN` | Span |
+| Stop | Request | Total | of which `TRAIN` | Span |
 |---|---|---|---|---|
 | T-Centralen (9001) | `forecast=60` | 68 | 16 | 14:08 – 15:09 |
 | T-Centralen (9001) | `forecast=240` | 72 | **18** | 14:07 – 15:36 |
 | A quiet suburban stop | `forecast=60` | 18 | 6 | 12:41 – 13:34 |
 | A quiet suburban stop | `forecast=240` | 24 | **6** | 12:41 – 14:04 |
 
-At the busy hub a wider window bought two more trains. At the quiet stop it bought **none** — the
-window genuinely widened and six more departures appeared, but every one was a bus, while `TRAIN`
-stayed pinned at 6. Those six then split across both directions, so a single-direction filter left
-about three.
+At the hub, four extra hours bought two more trains. At the quiet stop it bought **none** — six more
+departures appeared and every one was a bus, while `TRAIN` stayed pinned at 6.
 
-So: raising `forecast` is worth a try, but do not expect it to rescue a short list at a quiet stop.
-And remember the split — a site's departures cover **both directions**, so a one-direction filter
-roughly halves whatever you see.
+Those trains then split across **both directions**, so a one-direction filter leaves about three.
+Raising `forecast` is worth a try, but don't expect it to rescue a short list at a quiet stop.
 
-## Finding your site id
+## Finding your stop
 
-Fetch the site list once and search it:
+Two commands. The first finds your site id; the second tells you which direction code means "toward
+town" *at your stop*, which is the only reliable way to know.
+
+### Your site id
 
 ```bash
 curl -s "https://transport.integration.sl.se/v1/sites?expand=false" | grep -i "your stop name"
@@ -127,19 +158,19 @@ A few for reference, verified against the API on 2026-08-16:
 | Slussen | `9192` **and** `9208` |
 
 Slussen is the cautionary one: a single place can expose **more than one site id**, covering
-different parts of the interchange. Look yours up rather than assuming, and if departures look
-oddly incomplete, check whether your stop has a second id.
+different parts of the interchange. Look yours up rather than assuming, and if departures look oddly
+incomplete, check whether your stop has a second id.
 
-## Finding your direction code
+### Your direction code
 
-**`direction_code` is per line, not per compass direction.** It is always `1` or `2`, and which one
-means "toward town" differs from station to station. Do not copy someone else's value — check yours:
+`direction_code` is always `1` or `2`, and which one means "toward town" differs from station to
+station. Do not copy someone else's value — check yours:
 
 ```bash
 curl -s "https://transport.integration.sl.se/v1/sites/9001/departures" | grep -oE '"direction":"[^"]*"' | sort -u
 ```
 
-Then match the `direction` / `destination` names against the code:
+Then match the `direction` and `destination` names against the code:
 
 ```bash
 curl -s "https://transport.integration.sl.se/v1/sites/9001/departures" \
@@ -156,33 +187,14 @@ For T-Centralen, the commuter-train rows come out as:
 Note the same line numbers appear under both codes — which is the point. The code is a property of
 the line's *route*, not of the station, so there is no shortcut: run the command for your own stop.
 
-### ⚠️ Always set `transportModes` as well
+## When something goes wrong
 
-An SL **site is a place, not a platform.** One site id covers every stop at that location — the
-railway platforms, the metro, and the bus stands outside. Because `direction_code` is assigned per
-line, the same code means different things for different lines at the same site.
+A wall display should never show a stack trace, and should never show a stale list that looks
+current — the second is worse, because you act on it. On a network error, timeout or non-200
+response the module renders a single `—` and logs the reason. The next poll recovers on its own.
 
-T-Centralen, from the same captured response:
-
-| `direction_code` | Mode | Lines | Goes to |
-|---|---|---|---|
-| `2` | TRAIN | 40, 41, 43 | Uppsala C / Märsta / Kungsängen — *what you asked for* ✅ |
-| `2` | **BUS** | 65, 69 | Centralen, Hornsberg — *a city bus, not your train* ❌ |
-| `2` | **METRO** | 13, 14, 17, 18, 19 | Skarpnäck, Fruängen, Hagsätra — *also not your train* ❌ |
-
-So filtering on `directionCode: 2` alone quietly mixes buses and metro trains into what you thought
-was a commuter-rail list. Constraining `transportModes` is what makes the filter correct.
-
-This is covered by a regression test (`dropping the transportModes filter is what lets buses in`),
-which asserts against the real captured response in `tests/` — so if SL ever changes the shape of
-this data, the test says so rather than the wall quietly filling with the wrong vehicles.
-
-## Behaviour on failure
-
-A wall display should never show a stack trace or, worse, a stale list that looks current. On a
-network error, timeout or non-200 response the module renders a single **`—`** and logs the reason.
-The next poll recovers automatically. All fetching happens in `node_helper.js` server-side, both
-because the API sends no CORS headers and so that one request serves every attached browser.
+Fetching happens server-side in `node_helper.js`, both because the API sends no CORS headers and so
+that one request serves every attached browser rather than one per screen.
 
 ## Development
 
@@ -194,10 +206,15 @@ npm test
 npm run lint
 ```
 
-Tests run against a real captured API response (`tests/fixture-tcentralen.json`) and need no network.
+15 tests, run against a real captured API response (`tests/fixture-tcentralen.json`), so they need
+no network and cannot be broken by SL having a bad day. CI runs them on Node 20 and 24.
+
+Use the npm scripts rather than calling `node --test` directly — the portable invocation is fussier
+than it looks, and [`CLAUDE.md`](CLAUDE.md) explains why.
 
 ## Licence
 
 MIT — see [LICENSE](LICENSE).
 
-Not affiliated with or endorsed by Storstockholms Lokaltrafik (SL) or Trafiklab.
+Not affiliated with or endorsed by Storstockholms Lokaltrafik (SL) or Trafiklab. Departure data
+© SL, via the open Trafiklab platform.
